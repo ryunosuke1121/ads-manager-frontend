@@ -1,17 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronDown, Calendar, Filter, TrendingUp, AlertCircle, CheckCircle, Search, Download, Eye, Settings, AlertTriangle, Info, Lock, Unlock, X, Plus, Edit2, Trash2, Copy, Share2, ExternalLink, Zap, Target, BarChart3, PieChart as PieChartIcon, TrendingDown, Lightbulb, LineChart as LineChartIcon } from 'lucide-react';
+import { ChevronDown, Calendar, Filter, TrendingUp, AlertCircle, CheckCircle, Search, Download, Eye, Settings, AlertTriangle, Info, Lock, Unlock, X, Plus, Edit2, Trash2, Copy, Share2, ExternalLink, Zap, Target, BarChart3, PieChart as PieChartIcon, TrendingDown, Lightbulb } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-// APIから取得した実データを保存
 type DashboardData = {
   summary: any;
   campaigns: any[];
   keywords: any[];
-  deviceData: any[];
-  timeData: any[];
 };
 
 export default function GoogleAdsManager() {
@@ -19,98 +16,46 @@ export default function GoogleAdsManager() {
   const [data, setData] = useState<DashboardData>({
     summary: {},
     campaigns: [],
-    keywords: [],
-    deviceData: [],
-    timeData: []
+    keywords: []
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['metrics', 'alerts', 'recommendations']));
   const [searchKeyword, setSearchKeyword] = useState('');
 
-  // 実データを高速に取得する最適化されたfetch関数
   useEffect(() => {
     let isMounted = true;
     const controller = new AbortController();
 
-    const fetchRealData = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // 複数のAPI呼び出しを並列実行（最速パフォーマンス）
-        const requests = [
+        const [dashboard, campaigns, keywords] = await Promise.all([
           fetch(`${API_URL}/api/dashboard`, { signal: controller.signal, cache: 'no-store' }).then(r => r.json()),
           fetch(`${API_URL}/api/campaigns`, { signal: controller.signal, cache: 'no-store' }).then(r => r.json()),
-          fetch(`${API_URL}/api/keywords`, { signal: controller.signal, cache: 'no-store' }).then(r => r.json().catch(() => ({ keywords: [] }))),
-          fetch(`${API_URL}/api/reports/monthly`, { signal: controller.signal, cache: 'no-store' }).then(r => r.json().catch(() => []))
-        ];
-
-        // タイムアウト設定（最大5秒）
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('API timeout')), 5000)
-        );
-
-        const results = await Promise.race([
-          Promise.all(requests),
-          timeoutPromise
+          fetch(`${API_URL}/api/keywords`, { signal: controller.signal, cache: 'no-store' }).then(r => r.json())
         ]);
 
         if (!isMounted) return;
 
-        const [dashboard, campaigns, keywordsData, monthlyData] = results as any[];
-
-        // リアルデータの処理
-        const summary = dashboard?.summary || {};
-        const campaignsList = campaigns?.campaigns || [];
-        const keywordsList = keywordsData?.keywords || [];
-
-        // デバイス別データを動的に生成（APIから取得できない場合は推定）
-        const deviceData = [
-          { device: 'Mobile', impressions: Math.round((summary.impressions || 0) * 0.5), clicks: Math.round((summary.clicks || 0) * 0.5), spend: Math.round((summary.spend || 0) * 0.45), conversions: Math.round((summary.conversions || 0) * 0.5) },
-          { device: 'Desktop', impressions: Math.round((summary.impressions || 0) * 0.35), clicks: Math.round((summary.clicks || 0) * 0.35), spend: Math.round((summary.spend || 0) * 0.4), conversions: Math.round((summary.conversions || 0) * 0.35) },
-          { device: 'Tablet', impressions: Math.round((summary.impressions || 0) * 0.15), clicks: Math.round((summary.clicks || 0) * 0.15), spend: Math.round((summary.spend || 0) * 0.15), conversions: Math.round((summary.conversions || 0) * 0.15) }
-        ];
-
-        // 時間帯別データを動的に生成
-        const timeData = [
-          { hour: '00-04', impressions: Math.round((summary.impressions || 0) * 0.05), clicks: Math.round((summary.clicks || 0) * 0.04), spend: Math.round((summary.spend || 0) * 0.04), conversions: Math.round((summary.conversions || 0) * 0.03) },
-          { hour: '04-08', impressions: Math.round((summary.impressions || 0) * 0.08), clicks: Math.round((summary.clicks || 0) * 0.07), spend: Math.round((summary.spend || 0) * 0.07), conversions: Math.round((summary.conversions || 0) * 0.05) },
-          { hour: '08-12', impressions: Math.round((summary.impressions || 0) * 0.2), clicks: Math.round((summary.clicks || 0) * 0.22), spend: Math.round((summary.spend || 0) * 0.23), conversions: Math.round((summary.conversions || 0) * 0.25) },
-          { hour: '12-16', impressions: Math.round((summary.impressions || 0) * 0.25), clicks: Math.round((summary.clicks || 0) * 0.28), spend: Math.round((summary.spend || 0) * 0.28), conversions: Math.round((summary.conversions || 0) * 0.3) },
-          { hour: '16-20', impressions: Math.round((summary.impressions || 0) * 0.28), clicks: Math.round((summary.clicks || 0) * 0.32), spend: Math.round((summary.spend || 0) * 0.3), conversions: Math.round((summary.conversions || 0) * 0.32) },
-          { hour: '20-00', impressions: Math.round((summary.impressions || 0) * 0.14), clicks: Math.round((summary.clicks || 0) * 0.07), spend: Math.round((summary.spend || 0) * 0.08), conversions: Math.round((summary.conversions || 0) * 0.05) }
-        ];
-
         setData({
-          summary,
-          campaigns: campaignsList,
-          keywords: keywordsList,
-          deviceData,
-          timeData
+          summary: dashboard?.summary || {},
+          campaigns: campaigns?.campaigns || [],
+          keywords: keywords?.keywords || []
         });
 
         setLoading(false);
       } catch (err) {
         if (!isMounted) return;
-        
-        const errorMessage = err instanceof Error ? err.message : 'APIデータの取得に失敗しました';
+        const errorMessage = err instanceof Error ? err.message : 'データ取得エラーが発生しました';
         setError(errorMessage);
-        console.error('API Error:', err);
-        
-        // エラー時は空状態で表示（データなしで機能は動作）
-        setData({
-          summary: {},
-          campaigns: [],
-          keywords: [],
-          deviceData: [],
-          timeData: []
-        });
         setLoading(false);
       }
     };
 
-    fetchRealData();
+    fetchData();
 
     return () => {
       isMounted = false;
@@ -149,8 +94,39 @@ export default function GoogleAdsManager() {
           <div className="inline-block">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
-          <p className="text-lg mt-4 text-gray-700">Google Ads データを取得中...</p>
-          <p className="text-sm text-gray-500 mt-2">API接続を確立しています...</p>
+          <p className="text-lg mt-4 text-gray-700">Google Ads API からリアルデータを取得中...</p>
+          <p className="text-sm text-gray-500 mt-2">Please wait...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center max-w-md">
+          <AlertTriangle className="text-red-600 mx-auto mb-4" size={32} />
+          <p className="text-lg font-bold text-gray-900">データ取得エラー</p>
+          <p className="text-sm text-gray-600 mt-2">{error}</p>
+          <p className="text-sm text-gray-500 mt-4">
+            バックエンドが Google Ads API に接続できません。<br/>
+            ACCESS_TOKEN と REFRESH_TOKEN が正しく設定されているか確認してください。
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data.summary || Object.keys(data.summary).length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center max-w-md">
+          <Info className="text-blue-600 mx-auto mb-4" size={32} />
+          <p className="text-lg font-bold text-gray-900">データなし</p>
+          <p className="text-sm text-gray-600 mt-2">
+            Google Ads のデータが見つかりません。<br/>
+            Google Ads アカウントにキャンペーンがあるか確認してください。
+          </p>
         </div>
       </div>
     );
@@ -158,12 +134,6 @@ export default function GoogleAdsManager() {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      {error && (
-        <div className="bg-yellow-50 border-b border-yellow-200 px-8 py-3">
-          <p className="text-sm text-yellow-800">⚠️ {error}</p>
-        </div>
-      )}
-      
       <div className="flex h-screen">
         {/* サイドバー */}
         <div className="w-64 bg-white border-r border-gray-200 overflow-y-auto">
@@ -235,19 +205,15 @@ export default function GoogleAdsManager() {
           </div>
 
           <div className="p-8">
-            {/* ダッシュボードタブ */}
+            {/* ダッシュボード */}
             {activeTab === 'summary' && (
               <div className="space-y-6">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <div className="flex items-start gap-3">
-                    <AlertTriangle className="text-red-600 mt-1" size={20} />
+                    <CheckCircle className="text-green-600 mt-1" size={20} />
                     <div className="flex-1">
-                      <h3 className="font-bold text-red-900">⚠️ 要対応: データ取得状況</h3>
-                      <p className="text-sm text-red-800 mt-1">
-                        {data.campaigns.length > 0 
-                          ? '✅ Google Ads API から実データを取得しました' 
-                          : 'Google Ads APIからデータを取得しています...'}
-                      </p>
+                      <h3 className="font-bold text-green-900">✅ リアルデータ表示中</h3>
+                      <p className="text-sm text-green-800 mt-1">Google Ads API から取得した実際のデータを表示しています</p>
                     </div>
                   </div>
                 </div>
@@ -278,11 +244,11 @@ export default function GoogleAdsManager() {
                   )}
                 </div>
 
-                {/* キャンペーンパフォーマンス */}
+                {/* キャンペーン */}
                 {data.campaigns.length > 0 && (
                   <div>
                     <button onClick={() => toggleSection('campaigns')} className="flex items-center gap-2 mb-3 font-bold text-lg">
-                      {expandedSections.has('campaigns') ? '▼' : '▶'} 🎯 キャンペーンパフォーマンス
+                      {expandedSections.has('campaigns') ? '▼' : '▶'} 🎯 キャンペーン ({data.campaigns.length})
                     </button>
                     {expandedSections.has('campaigns') && (
                       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -299,11 +265,11 @@ export default function GoogleAdsManager() {
                           <tbody>
                             {data.campaigns.map((camp: any, i: number) => (
                               <tr key={i} className="border-b hover:bg-gray-50">
-                                <td className="px-4 py-3 font-medium">{camp.name || `キャンペーン${i + 1}`}</td>
-                                <td className="px-4 py-3 text-right">{safeToLocaleString(camp.impressions || 0)}</td>
-                                <td className="px-4 py-3 text-right">{safeToLocaleString(camp.clicks || 0)}</td>
-                                <td className="px-4 py-3 text-right">¥{safeToLocaleString((camp.spend || 0) / 1000)}K</td>
-                                <td className="px-4 py-3 text-right text-blue-600 font-bold">{camp.conversions || 0}</td>
+                                <td className="px-4 py-3 font-medium">{camp.name}</td>
+                                <td className="px-4 py-3 text-right">{safeToLocaleString(camp.impressions)}</td>
+                                <td className="px-4 py-3 text-right">{safeToLocaleString(camp.clicks)}</td>
+                                <td className="px-4 py-3 text-right">¥{safeToLocaleString(camp.spend / 1000)}K</td>
+                                <td className="px-4 py-3 text-right text-blue-600 font-bold">{camp.conversions}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -315,11 +281,11 @@ export default function GoogleAdsManager() {
               </div>
             )}
 
-            {/* キーワード管理タブ */}
+            {/* キーワード管理 */}
             {activeTab === 'keywords' && (
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-gray-900">キーワード一覧 ({data.keywords.length}件)</h3>
+                  <h3 className="font-bold text-gray-900">キーワード一覧 ({data.keywords.length})</h3>
                   <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2 text-sm">
                     <Plus size={16} /> キーワード追加
                   </button>
@@ -342,18 +308,16 @@ export default function GoogleAdsManager() {
                           <th className="px-4 py-3 text-center">マッチ</th>
                           <th className="px-4 py-3 text-right">IMP</th>
                           <th className="px-4 py-3 text-right">Click</th>
-                          <th className="px-4 py-3 text-right">CTR</th>
                           <th className="px-4 py-3 text-center">品質</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredKeywords.map((kw: any, i: number) => (
                           <tr key={i} className="border-b hover:bg-gray-50">
-                            <td className="px-4 py-3 font-medium">{kw.text || `キーワード${i}`}</td>
-                            <td className="px-4 py-3 text-center"><span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">{kw.matchType || 'EXACT'}</span></td>
-                            <td className="px-4 py-3 text-right">{safeToLocaleString(kw.impressions || 0)}</td>
-                            <td className="px-4 py-3 text-right">{safeToLocaleString(kw.clicks || 0)}</td>
-                            <td className="px-4 py-3 text-right">{((kw.clicks || 0) / (kw.impressions || 1) * 100).toFixed(2)}%</td>
+                            <td className="px-4 py-3 font-medium">{kw.text}</td>
+                            <td className="px-4 py-3 text-center"><span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">{kw.matchType}</span></td>
+                            <td className="px-4 py-3 text-right">{safeToLocaleString(kw.impressions)}</td>
+                            <td className="px-4 py-3 text-right">{safeToLocaleString(kw.clicks)}</td>
                             <td className="px-4 py-3 text-center">
                               <span className={`px-2 py-1 rounded text-xs font-bold ${
                                 (kw.qualityScore || 0) >= 8 ? 'bg-green-100 text-green-700' :
@@ -367,188 +331,40 @@ export default function GoogleAdsManager() {
                     </table>
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <p>キーワードデータが利用可能になると自動的に表示されます</p>
-                  </div>
+                  <div className="text-center py-8 text-gray-500">キーワードデータが見つかりません</div>
                 )}
               </div>
             )}
 
-            {/* 品質スコア分析タブ */}
-            {activeTab === 'qualityscore' && (
+            {/* 品質スコア分析 */}
+            {activeTab === 'qualityscore' && data.keywords.length > 0 && (
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-lg border border-yellow-200">
                     <p className="text-sm text-gray-600">平均品質スコア</p>
                     <p className="text-5xl font-bold text-yellow-600 mt-2">{avgQualityScore}</p>
-                    <p className="text-xs text-gray-500 mt-2">業界平均: 6.5</p>
                   </div>
                   <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg border border-green-200">
                     <p className="text-sm text-gray-600">スコア 8-10</p>
                     <p className="text-4xl font-bold text-green-600 mt-2">
-                      {data.keywords.length > 0 
-                        ? Math.round((data.keywords.filter((k: any) => (k.qualityScore || 0) >= 8).length / data.keywords.length) * 100)
-                        : 0}%
+                      {Math.round((data.keywords.filter((k: any) => (k.qualityScore || 0) >= 8).length / data.keywords.length) * 100)}%
                     </p>
                   </div>
                   <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-lg border border-red-200">
                     <p className="text-sm text-gray-600">スコア 1-4</p>
                     <p className="text-4xl font-bold text-red-600 mt-2">
-                      {data.keywords.length > 0 
-                        ? Math.round((data.keywords.filter((k: any) => (k.qualityScore || 0) <= 4).length / data.keywords.length) * 100)
-                        : 0}%
+                      {Math.round((data.keywords.filter((k: any) => (k.qualityScore || 0) <= 4).length / data.keywords.length) * 100)}%
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* デバイス別分析タブ */}
-            {activeTab === 'device' && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="font-bold text-lg mb-4">デバイス別パフォーマンス</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  {data.deviceData.map((dev: any, i: number) => (
-                    <div key={i} className="p-4 rounded-lg border border-gray-200">
-                      <p className="font-bold text-gray-900">{dev.device}</p>
-                      <div className="mt-3 space-y-2 text-sm">
-                        <p>IMP: {safeToLocaleString(dev.impressions)}</p>
-                        <p>Click: {safeToLocaleString(dev.clicks)}</p>
-                        <p>消費: ¥{safeToLocaleString(dev.spend / 1000)}K</p>
-                        <p className="font-bold text-blue-600">CV: {dev.conversions}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 時間帯別分析タブ */}
-            {activeTab === 'schedule' && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="font-bold text-lg mb-4">時間帯別パフォーマンス</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="px-4 py-3 text-left">時間帯</th>
-                        <th className="px-4 py-3 text-right">IMP</th>
-                        <th className="px-4 py-3 text-right">Click</th>
-                        <th className="px-4 py-3 text-right">消費</th>
-                        <th className="px-4 py-3 text-right">CV</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.timeData.map((time: any, i: number) => (
-                        <tr key={i} className="border-b hover:bg-gray-50">
-                          <td className="px-4 py-3 font-medium">{time.hour}</td>
-                          <td className="px-4 py-3 text-right">{safeToLocaleString(time.impressions)}</td>
-                          <td className="px-4 py-3 text-right">{safeToLocaleString(time.clicks)}</td>
-                          <td className="px-4 py-3 text-right">¥{safeToLocaleString(time.spend / 1000)}K</td>
-                          <td className="px-4 py-3 text-right text-blue-600 font-bold">{time.conversions}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* 検索語句レポート */}
-            {activeTab === 'search' && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="font-bold text-lg mb-4">検索語句レポート</h3>
-                {data.keywords.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 border-b">
-                        <tr>
-                          <th className="px-4 py-3 text-left">検索語句</th>
-                          <th className="px-4 py-3 text-right">IMP</th>
-                          <th className="px-4 py-3 text-right">Click</th>
-                          <th className="px-4 py-3 text-right">CTR</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {data.keywords.map((kw: any, i: number) => (
-                          <tr key={i} className="border-b hover:bg-gray-50">
-                            <td className="px-4 py-3">{kw.text}</td>
-                            <td className="px-4 py-3 text-right">{safeToLocaleString(kw.impressions)}</td>
-                            <td className="px-4 py-3 text-right">{safeToLocaleString(kw.clicks)}</td>
-                            <td className="px-4 py-3 text-right">{((kw.clicks || 0) / (kw.impressions || 1) * 100).toFixed(2)}%</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">検索語句データが利用可能になると自動的に表示されます</div>
-                )}
-              </div>
-            )}
-
-            {/* 除外キーワード */}
-            {activeTab === 'excludes' && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-gray-900">除外キーワード</h3>
-                  <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2 text-sm">
-                    <Plus size={16} /> 除外キーワード追加
-                  </button>
-                </div>
-                <div className="text-center py-8 text-gray-500">
-                  <p>除外キーワードはここに表示されます</p>
-                </div>
-              </div>
-            )}
-
-            {/* 入札管理 */}
-            {activeTab === 'bidding' && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="font-bold text-lg mb-4">入札戦略</h3>
-                {data.campaigns.length > 0 ? (
-                  <div className="space-y-4">
-                    {data.campaigns.map((camp: any, i: number) => (
-                      <div key={i} className="p-4 border border-gray-200 rounded-lg">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="font-bold">{camp.name || `キャンペーン${i + 1}`}</span>
-                          <select className="px-3 py-1 border rounded text-sm">
-                            <option>手動入札</option>
-                            <option>目標ROAS</option>
-                            <option>目標CPA</option>
-                          </select>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">キャンペーンデータが取得されると表示されます</div>
-                )}
-              </div>
-            )}
-
-            {/* 広告パフォーマンス */}
-            {activeTab === 'ads' && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="font-bold text-lg mb-4">広告パフォーマンス</h3>
-                <div className="text-center py-8 text-gray-500">
-                  <p>広告パフォーマンスデータはここに表示されます</p>
-                </div>
-              </div>
-            )}
-
-            {/* 自動化ルール */}
-            {activeTab === 'automation' && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-gray-900">自動化ルール</h3>
-                  <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2 text-sm">
-                    <Plus size={16} /> ルール作成
-                  </button>
-                </div>
-                <div className="text-center py-8 text-gray-500">
-                  <p>自動化ルールはここに表示されます</p>
-                </div>
+            {/* その他タブ */}
+            {!['summary', 'keywords', 'qualityscore'].includes(activeTab) && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6 text-center text-gray-600">
+                <Info size={32} className="mx-auto mb-2 opacity-50" />
+                <p>このセクションは準備中です</p>
               </div>
             )}
           </div>
