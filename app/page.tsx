@@ -362,4 +362,136 @@ export default function GoogleAdsManager() {
             </div>
           )}
 
-          {/*
+          {/* ===== 時間帯別分析 ===== */}
+          {activeTab==='schedule' && (
+            <div className="space-y-4">
+              <p className="text-xs text-gray-500 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">※ 時間帯別データは参考値です。実データ取得には追加APIクエリが必要です。</p>
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b"><p className="font-bold text-gray-900 text-sm">時間帯別パフォーマンス（推計）</p></div>
+                <table className="w-full text-sm"><thead className="bg-gray-50 border-b"><tr>{['時間帯','インプレッション','クリック','CTR','CV'].map(h=><th key={h} className={`px-4 py-3 text-xs font-bold text-gray-600 ${h==='時間帯'?'text-left':'text-right'}`}>{h}</th>)}</tr></thead>
+                  <tbody>{[
+                    {t:'0-3時',imp:0.02,clk:0.01,cv:0.01},
+                    {t:'4-7時',imp:0.03,clk:0.02,cv:0.01},
+                    {t:'8-11時',imp:0.18,clk:0.17,cv:0.16},
+                    {t:'12-14時',imp:0.15,clk:0.16,cv:0.15},
+                    {t:'15-17時',imp:0.17,clk:0.18,cv:0.19},
+                    {t:'18-20時',imp:0.20,clk:0.22,cv:0.25},
+                    {t:'21-23時',imp:0.25,clk:0.24,cv:0.23},
+                  ].map((row,i)=>{
+                    const imp = Math.round(impressions*row.imp);
+                    const clk = Math.round(clicks*row.clk);
+                    const cv = Math.round(conversions*row.cv);
+                    const ctrRow = imp>0 ? ((clk/imp)*100).toFixed(2) : '0.00';
+                    return <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{row.t}</td>
+                      <td className="px-4 py-3 text-right text-gray-700">{fmt(imp)}</td>
+                      <td className="px-4 py-3 text-right text-gray-700">{fmt(clk)}</td>
+                      <td className="px-4 py-3 text-right text-gray-700">{ctrRow}%</td>
+                      <td className="px-4 py-3 text-right font-bold text-blue-600">{cv}</td>
+                    </tr>;
+                  })}</tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ===== 検索語句レポート ===== */}
+          {activeTab==='search' && (
+            <div className="space-y-4">
+              <p className="text-xs text-gray-500 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">※ 検索語句レポートはGoogle Ads APIの追加クエリが必要です。現在はキーワードデータをベースに表示しています。</p>
+              {data.keywords.length > 0 ? (
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 border-b"><p className="font-bold text-gray-900 text-sm">キーワード別パフォーマンス（検索語句の参考）</p></div>
+                  <table className="w-full text-sm"><thead className="bg-gray-50 border-b"><tr>{['キーワード','マッチタイプ','IMP','Click','CTR','CV'].map(h=><th key={h} className={`px-4 py-3 text-xs font-bold text-gray-600 ${h==='キーワード'?'text-left':'text-right'}`}>{h}</th>)}</tr></thead>
+                    <tbody>{data.keywords.slice(0,30).map((kw:any,i:number)=>{
+                      const kwCtr = kw.impressions>0 ? ((kw.clicks/kw.impressions)*100).toFixed(1) : '0.0';
+                      return <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium text-gray-900">{kw.text}</td>
+                        <td className="px-4 py-3 text-right"><span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">{kw.matchType}</span></td>
+                        <td className="px-4 py-3 text-right text-gray-700">{fmt(kw.impressions)}</td>
+                        <td className="px-4 py-3 text-right text-gray-700">{fmt(kw.clicks)}</td>
+                        <td className="px-4 py-3 text-right text-gray-700">{kwCtr}%</td>
+                        <td className="px-4 py-3 text-right font-bold text-blue-600">—</td>
+                      </tr>;
+                    })}</tbody>
+                  </table>
+                </div>
+              ) : <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500 text-sm">キーワードデータなし</div>}
+            </div>
+          )}
+
+          {/* ===== 除外キーワード ===== */}
+          {activeTab==='excludes' && (
+            <div className="space-y-4">
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                <p className="font-bold text-gray-900 text-sm mb-3">除外キーワード追加</p>
+                <div className="flex gap-2">
+                  <input type="text" placeholder="除外するキーワードを入力..." value={excludeInput} onChange={e=>setExcludeInput(e.target.value)}
+                    onKeyDown={e=>{if(e.key==='Enter'&&excludeInput.trim()){setExcludeList(prev=>[...prev,excludeInput.trim()]);setExcludeInput('');}}}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                  <button onClick={()=>{if(excludeInput.trim()){setExcludeList(prev=>[...prev,excludeInput.trim()]);setExcludeInput('');}}}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-1.5 transition"><Plus size={14}/> 追加</button>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                  <p className="font-bold text-gray-900 text-sm">除外キーワード一覧 ({excludeList.length}件)</p>
+                </div>
+                {excludeList.length > 0 ? (
+                  <table className="w-full text-sm"><thead className="bg-gray-50 border-b"><tr>{['キーワード','マッチタイプ','操作'].map(h=><th key={h} className={`px-4 py-3 text-xs font-bold text-gray-600 ${h==='キーワード'?'text-left':'text-center'}`}>{h}</th>)}</tr></thead>
+                    <tbody>{excludeList.map((kw,i)=>(
+                      <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium text-gray-900">{kw}</td>
+                        <td className="px-4 py-3 text-center"><span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">部分一致</span></td>
+                        <td className="px-4 py-3 text-center"><button onClick={()=>setExcludeList(prev=>prev.filter((_,j)=>j!==i))} className="text-red-500 hover:text-red-700 transition"><Trash2 size={14}/></button></td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                ) : <p className="text-center py-8 text-gray-500 text-sm">除外キーワードなし</p>}
+              </div>
+            </div>
+          )}
+
+          {/* ===== 自動化ルール ===== */}
+          {activeTab==='automation' && (
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <button className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-1.5 transition"><Plus size={14}/> ルール追加</button>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b"><p className="font-bold text-gray-900 text-sm">自動化ルール一覧</p></div>
+                <table className="w-full text-sm"><thead className="bg-gray-50 border-b"><tr>{['ルール名','条件','アクション','頻度','状態','操作'].map(h=><th key={h} className={`px-4 py-3 text-xs font-bold text-gray-600 ${h==='ルール名'?'text-left':'text-center'}`}>{h}</th>)}</tr></thead>
+                  <tbody>{[
+                    {name:'CPA超過時入札下げ', cond:`CPA > ¥${fmt(cpa*2||10000)}`, action:'入札額 -20%', freq:'毎日', active:true},
+                    {name:'低CTRキーワード停止', cond:'CTR < 0.5%（7日間）', action:'キーワード一時停止', freq:'毎週', active:true},
+                    {name:'予算超過アラート', cond:'消費 > 月予算の80%', action:'メール通知', freq:'毎日', active:false},
+                    {name:'高CV入札引き上げ', cond:`CV数 > ${Math.round(conversions/30)||3}（日次）`, action:'入札額 +15%', freq:'毎日', active:false},
+                  ].map((rule,i)=>(
+                    <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{rule.name}</td>
+                      <td className="px-4 py-3 text-center text-xs text-gray-600">{rule.cond}</td>
+                      <td className="px-4 py-3 text-center text-xs text-gray-600">{rule.action}</td>
+                      <td className="px-4 py-3 text-center text-xs text-gray-600">{rule.freq}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${rule.active?'bg-green-100 text-green-700':'bg-gray-100 text-gray-500'}`}>
+                          {rule.active ? '✅ 有効' : '⏸ 停止'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button className="text-blue-500 hover:text-blue-700 transition"><Edit2 size={13}/></button>
+                          <button className="text-red-500 hover:text-red-700 transition"><Trash2 size={13}/></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
