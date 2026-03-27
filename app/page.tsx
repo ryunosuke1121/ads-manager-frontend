@@ -105,7 +105,7 @@ export default function GoogleAdsManager() {
     );
   }
 
-  if (!data.summary || Object.keys(data.summary).length === 0) {
+  if (!data.summary || (!data.summary.totalClicks && !data.summary.clicks && Object.keys(data.summary).length === 0)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center max-w-md">
@@ -213,19 +213,19 @@ export default function GoogleAdsManager() {
                     <div className="grid grid-cols-4 gap-4">
                       <div className="bg-white p-4 rounded-lg border border-gray-200">
                         <p className="text-sm text-gray-600">消費金額</p>
-                        <p className="text-3xl font-bold mt-2">¥{safeToLocaleString((data?.summary?.spend || 0) / 1000)}K</p>
+                        <p className="text-3xl font-bold mt-2">¥{safeToLocaleString(Math.round((data?.summary?.totalCost || 0) / 1000))}K</p>
                       </div>
                       <div className="bg-white p-4 rounded-lg border border-gray-200">
                         <p className="text-sm text-gray-600">インプレッション</p>
-                        <p className="text-3xl font-bold mt-2">{safeToLocaleString((data?.summary?.impressions || 0) / 1000)}K</p>
+                        <p className="text-3xl font-bold mt-2">{safeToLocaleString(Math.round((data?.summary?.totalImpressions || 0) / 1000))}K</p>
                       </div>
                       <div className="bg-white p-4 rounded-lg border border-gray-200">
                         <p className="text-sm text-gray-600">クリック数</p>
-                        <p className="text-3xl font-bold mt-2">{safeToLocaleString(data?.summary?.clicks || 0)}</p>
+                        <p className="text-3xl font-bold mt-2">{safeToLocaleString(data?.summary?.totalClicks || 0)}</p>
                       </div>
                       <div className="bg-white p-4 rounded-lg border border-gray-200">
                         <p className="text-sm text-gray-600">コンバージョン</p>
-                        <p className="text-3xl font-bold text-blue-600 mt-2">{safeToLocaleString(data?.summary?.conversions || 0)}</p>
+                        <p className="text-3xl font-bold text-blue-600 mt-2">{safeToLocaleString(data?.summary?.totalConversions || 0)}</p>
                       </div>
                     </div>
                   )}
