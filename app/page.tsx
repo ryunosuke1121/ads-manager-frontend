@@ -1,5 +1,4 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import { ChevronDown, Calendar, Filter, TrendingUp, AlertCircle, CheckCircle, Search, Download, Eye, Settings, AlertTriangle, Info, Lock, Unlock, X, Plus, Edit2, Trash2, Copy, Share2, ExternalLink, Zap, Target, BarChart3, PieChart as PieChartIcon, TrendingDown, Lightbulb } from 'lucide-react';
 
@@ -13,11 +12,7 @@ type DashboardData = {
 
 export default function GoogleAdsManager() {
   const [activeTab, setActiveTab] = useState('summary');
-  const [data, setData] = useState<DashboardData>({
-    summary: {},
-    campaigns: [],
-    keywords: []
-  });
+  const [data, setData] = useState<DashboardData>({ summary: {}, campaigns: [], keywords: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['metrics', 'alerts', 'recommendations']));
@@ -35,7 +30,9 @@ export default function GoogleAdsManager() {
         const [dashboard, campaigns, keywords] = await Promise.all([
           fetch(`${API_URL}/api/dashboard`, { signal: controller.signal, cache: 'no-store' }).then(r => r.json()),
           fetch(`${API_URL}/api/campaigns`, { signal: controller.signal, cache: 'no-store' }).then(r => r.json()),
-          fetch(`${API_URL}/api/keywords`, { signal: controller.signal, cache: 'no-store' }).then(r => r.json())
+          fetch(`${API_URL}/api/keywords`, { signal: controller.signal, cache: 'no-store' })
+            .then(r => r.ok ? r.json() : { keywords: [] })
+            .catch(() => ({ keywords: [] }))
         ]);
 
         if (!isMounted) return;
@@ -45,7 +42,6 @@ export default function GoogleAdsManager() {
           campaigns: campaigns?.campaigns || [],
           keywords: keywords?.keywords || []
         });
-
         setLoading(false);
       } catch (err) {
         if (!isMounted) return;
@@ -56,20 +52,12 @@ export default function GoogleAdsManager() {
     };
 
     fetchData();
-
-    return () => {
-      isMounted = false;
-      controller.abort();
-    };
+    return () => { isMounted = false; controller.abort(); };
   }, []);
 
   const toggleSection = (section: string) => {
     const newExpanded = new Set(expandedSections);
-    if (newExpanded.has(section)) {
-      newExpanded.delete(section);
-    } else {
-      newExpanded.add(section);
-    }
+    if (newExpanded.has(section)) { newExpanded.delete(section); } else { newExpanded.add(section); }
     setExpandedSections(newExpanded);
   };
 
@@ -83,8 +71,8 @@ export default function GoogleAdsManager() {
     (kw.text || '').toLowerCase().includes(searchKeyword.toLowerCase())
   );
 
-  const avgQualityScore = data.keywords.length > 0 ? 
-    Math.round((data.keywords.reduce((sum: number, kw: any) => sum + (kw.qualityScore || 0), 0) / data.keywords.length) * 10) / 10
+  const avgQualityScore = data.keywords.length > 0
+    ? Math.round((data.keywords.reduce((sum: number, kw: any) => sum + (kw.qualityScore || 0), 0) / data.keywords.length) * 10) / 10
     : 0;
 
   if (loading) {
@@ -149,7 +137,6 @@ export default function GoogleAdsManager() {
               <Plus size={16} /> キャンペーン作成
             </button>
           </div>
-
           <nav className="p-4 space-y-2">
             {[
               { id: 'summary', label: 'サマリー', icon: '📊' },
@@ -244,7 +231,6 @@ export default function GoogleAdsManager() {
                   )}
                 </div>
 
-                {/* キャンペーン */}
                 {data.campaigns.length > 0 && (
                   <div>
                     <button onClick={() => toggleSection('campaigns')} className="flex items-center gap-2 mb-3 font-bold text-lg">
@@ -291,12 +277,12 @@ export default function GoogleAdsManager() {
                   </button>
                 </div>
                 <div className="mb-4">
-                  <input 
-                    type="text" 
-                    placeholder="キーワード検索..." 
+                  <input
+                    type="text"
+                    placeholder="キーワード検索..."
                     value={searchKeyword}
                     onChange={(e) => setSearchKeyword(e.target.value)}
-                    className="w-full px-3 py-2 border rounded" 
+                    className="w-full px-3 py-2 border rounded"
                   />
                 </div>
                 {data.keywords.length > 0 ? (
